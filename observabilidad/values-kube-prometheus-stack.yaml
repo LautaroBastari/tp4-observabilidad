@@ -1,0 +1,45 @@
+# kube-prometheus-stack 92.11.0
+# helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+#   --version 92.11.0 -n observabilidad -f observabilidad/values-kube-prometheus-stack.yaml
+
+# No usamos alertas por mail/Slack en el TP
+alertmanager:
+  enabled: false
+
+grafana:
+  adminPassword: admin
+  # Con menos de 512Mi el contenedor se reinicia (OOMKilled) al cargar la UI
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  # Loki como datasource, provisionado desde values (no a mano en la UI)
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki.observabilidad.svc.cluster.local:3100
+      isDefault: false
+
+# Componentes del control plane de minikube: controller-manager, scheduler y
+# etcd exponen sus métricas solo en 127.0.0.1 dentro del nodo, así que
+# Prometheus (que scrapea a la IP del nodo, 192.168.49.2) recibe
+# "connection refused" y quedan en down. Se deshabilita su scraping.
+# kube-proxy sí escucha en todas las interfaces (quedó UP), así que se deja.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
